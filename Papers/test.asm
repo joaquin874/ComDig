@@ -1,0 +1,124 @@
+    LIST        P=16F887
+    #INCLUDE    <P16F887.INC>
+    ; CONFIG1
+; __config 0x3FF4
+ __CONFIG _CONFIG1, _FOSC_INTRC_NOCLKOUT & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _IESO_ON & _FCMEN_ON & _LVP_ON
+; CONFIG2
+; __config 0x3FFF
+ __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
+ 
+    T1	    EQU	    0x21
+    T2	    EQU	    0x22
+    T3	    EQU	    0x25
+    CONTD   EQU	    0x26
+  
+    ORG	    0x00
+    GOTO    MAIN
+    ORG	    0x04
+    GOTO    ISR
+    ORG	    0x05
+    
+MAIN
+    ; SETEA LOS PUERTOS PARA ENTRADA EL PUERTO RB0 Y EL RESTO COMO SALIDA PARA LA ALTA IMPEDANCIA
+    BANKSEL TRISB
+    MOVLW   0x01
+    MOVWF   TRISB
+    
+    ; SETEA COMO SALIDA EL PUERTO D
+    BANKSEL TRISD
+    CLRF    TRISD
+    
+    ; PONE COMO DIGITAL EL PUERTO B
+    BANKSEL ANSELH
+    CLRF    ANSELH
+    
+    ; PONE EN 0 EL PUERTO B
+    BANKSEL PORTB
+    CLRF    PORTB
+    CLRF    CONTD
+    
+    ; PREPARA INTCON
+    BANKSEL INTCON
+    MOVLW   0x08
+    MOVWF   INTCON
+    
+    ; SETEA EL 0 EN EL DISPLAY
+    BANKSEL PORTD
+    MOVLW   0x3F
+    MOVWF   PORTD
+    
+    ; CONFIGURO LA INTERRUPCION
+    BANKSEL OPTION_REG
+    BCF	    OPTION_REG,7
+    BANKSEL IOCB
+    BSF	    IOCB,0
+    BSF	    INTCON,7
+    GOTO    $
+    
+    
+ISR
+    ;SALVA EL CONTEXTO
+    MOVWF   0x23		
+    MOVF    STATUS,W
+    MOVWF   0x24
+    
+    ;
+    BANKSEL PORTD
+    CALL    DELAY
+    MOVLW   0x01
+    INCF    CONTD
+    BTFSC   CONTD,4
+    MOVWF   CONTD
+    MOVF    CONTD,W
+    CALL    TABLE   
+    MOVWF   PORTD
+BOTON
+    BTFSS   PORTB,0
+    GOTO    BOTON
+    
+    ;
+    
+    ;RECUPERA EL CONTEXTO
+    MOVF    0x24,W
+    MOVLW   STATUS
+    MOVF    0x23,W
+    BCF	    INTCON,0
+    RETFIE
+    
+
+; DELAY DE 770uS * 50 *10 = 
+DELAY
+    
+    MOVLW   .1
+    MOVWF   T3
+GAMMA
+    MOVLW   .50
+    MOVWF   T2
+BETA
+    MOVLW   .255
+    MOVWF   T1
+ALFA
+    DECFSZ  T1
+    GOTO    ALFA
+    DECFSZ  T2
+    GOTO    BETA
+    DECFSZ  T3
+    GOTO    GAMMA
+    RETURN
+    
+TABLE
+
+    ADDWF   PCL,F
+    NOP
+    RETLW   0x06    ;1
+    RETLW   0x5B    ;2
+    RETLW   0x4F    ;3
+    RETLW   0x66    ;4
+    RETLW   0x6D    ;5
+    RETLW   0x7D    ;6
+    RETLW   0x07    ;7
+    RETLW   0x7F    ;8
+    RETLW   0x67    ;9
+    
+    END
+    
